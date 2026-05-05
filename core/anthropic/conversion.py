@@ -46,10 +46,31 @@ def _tool_name(tool: Any) -> str:
 
 
 def _tool_input_schema(tool: Any) -> dict[str, Any]:
+    """Return a sanitized tool input schema.
+
+    Some providers (e.g., Gemini) reject JSON Schema keywords that are not part of the
+    OpenAI function calling spec, such as ``propertyNames`` or ``exclusiveMinimum``.
+    We therefore filter the schema to only include keys known to be supported by the
+    OpenAI‑compatible endpoint.
+    """
     schema = getattr(tool, "input_schema", None)
-    if isinstance(schema, dict):
-        return schema
-    return {"type": "object", "properties": {}}
+    if not isinstance(schema, dict):
+        return {"type": "object", "properties": {}}
+
+    # Allowed top‑level keys per the OpenAI spec.
+    allowed_keys = {"type", "properties", "required", "description", "enum", "default"}
+    # ``properties`` is itself a dict of property definitions; we filter each property.
+    filtered = {k: v for k, v in schema.items() if k in allowed_keys}
+    if "properties" in filtered and isinstance(filtered["properties"], dict):
+        allowed_prop_keys = {"type", "description", "enum", "default", "items", "minLength", "maxLength", "minimum", "maximum"}
+        new_props = {}
+        for prop_name, prop_schema in filtered["properties"].items():
+            if isinstance(prop_schema, dict):
+                new_props[prop_name] = {k: v for k, v in prop_schema.items() if k in allowed_prop_keys}
+            else:
+                new_props[prop_name] = prop_schema
+        filtered["properties"] = new_props
+    return filtered
 
 
 def _serialize_tool_result_content(tool_content: Any) -> str:

@@ -162,6 +162,13 @@ class Settings(BaseSettings):
         validation_alias="OLLAMA_BASE_URL",
     )
 
+    # ==================== Manifest Config ====================
+    manifest_base_url: str = Field(
+        default="http://localhost:2099/v1", validation_alias="MANIFEST_BASE_URL"
+    )
+    manifest_api_key: str = Field(default="", validation_alias="MANIFEST_API_KEY")
+    manifest_proxy: str = Field(default="", validation_alias="MANIFEST_PROXY")
+
     # ==================== Model ====================
     # All Claude model requests are mapped to this single model (fallback)
     # Format: provider_type/model/name

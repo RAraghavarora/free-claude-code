@@ -51,6 +51,7 @@ PROVIDER_SMOKE_DEFAULT_MODELS: dict[str, str] = {
     "wafer": "wafer/DeepSeek-V4-Pro",
     "opencode": "opencode/gpt-5.3-codex",
     "zai": "zai/glm-5.1",
+    "manifest": "manifest/auto",
 }
 
 NVIDIA_NIM_CLI_DEFAULT_MODELS: tuple[str, ...] = (
@@ -237,6 +238,10 @@ class SmokeConfig:
             return bool(self.settings.opencode_api_key.strip())
         if provider == "zai":
             return bool(self.settings.zai_api_key.strip())
+        if provider == "manifest":
+            base_url = getattr(self.settings, "manifest_base_url", "") or ""
+            api_key = getattr(self.settings, "manifest_api_key", "") or ""
+            return bool(base_url.strip() and api_key.strip())
         return False
 
 

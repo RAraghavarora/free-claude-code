@@ -10,6 +10,7 @@ from providers.deepseek import DeepSeekProvider
 from providers.exceptions import UnknownProviderTypeError
 from providers.llamacpp import LlamaCppProvider
 from providers.lmstudio import LMStudioProvider
+from providers.manifest import ManifestProvider
 from providers.nvidia_nim import NvidiaNimProvider
 from providers.ollama import OllamaProvider
 from providers.open_router import OpenRouterProvider
@@ -36,6 +37,8 @@ def _make_settings(**overrides):
     mock.lm_studio_base_url = "http://localhost:1234/v1"
     mock.llamacpp_base_url = "http://localhost:8080/v1"
     mock.ollama_base_url = "http://localhost:11434"
+    mock.manifest_base_url = "http://localhost:2099/v1"
+    mock.manifest_api_key = "mnfst_smoke_test_key"
     mock.nvidia_nim_proxy = ""
     mock.open_router_proxy = ""
     mock.lmstudio_proxy = ""
@@ -44,6 +47,7 @@ def _make_settings(**overrides):
     mock.wafer_proxy = ""
     mock.opencode_proxy = ""
     mock.zai_proxy = ""
+    mock.manifest_proxy = ""
     mock.provider_rate_limit = 40
     mock.provider_rate_window = 60
     mock.provider_max_concurrency = 5
@@ -107,6 +111,7 @@ def test_create_provider_instantiates_each_builtin():
         "wafer": WaferProvider,
         "opencode": OpenCodeProvider,
         "zai": ZaiProvider,
+        "manifest": ManifestProvider,
     }
 
     with (

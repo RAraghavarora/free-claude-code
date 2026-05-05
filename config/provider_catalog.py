@@ -168,6 +168,17 @@ PROVIDER_CATALOG: dict[str, ProviderDescriptor] = {
         proxy_attr="fireworks_proxy",
         capabilities=("chat", "streaming", "tools", "thinking", "rate_limit"),
     ),
+    "manifest": ProviderDescriptor(
+        provider_id="manifest",
+        transport_type="openai_chat",
+        credential_env="MANIFEST_API_KEY",
+        credential_attr="manifest_api_key",
+        credential_url="https://manifest.build/docs",
+        default_base_url=MANIFEST_DEFAULT_BASE,
+        base_url_attr="manifest_base_url",
+        proxy_attr="manifest_proxy",
+        capabilities=("chat", "streaming", "tools", "local"),
+    ),
 }
 
 # Order matches docs / historical error text; must match PROVIDER_CATALOG keys.

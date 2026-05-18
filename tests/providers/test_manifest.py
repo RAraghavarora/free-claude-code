@@ -1,6 +1,11 @@
 """Manifest provider converts Pydantic content blocks correctly."""
 
-from api.models.anthropic import ContentBlockText, Message, MessagesRequest
+from api.models.anthropic import (
+    ContentBlockImage,
+    ContentBlockText,
+    Message,
+    MessagesRequest,
+)
 from providers.base import ProviderConfig
 from providers.manifest import ManifestProvider
 
@@ -48,3 +53,32 @@ def test_build_request_body_with_content_block_text_instances():
     assert body["messages"][-2]["role"] == "user"
     assert isinstance(body["messages"][-2]["content"], str)
     assert "Hello" in body["messages"][-2]["content"]
+
+
+def test_build_request_body_with_user_image_block():
+    provider = ManifestProvider(_minimal_config())
+    req = MessagesRequest(
+        model="manifest/auto",
+        messages=[
+            Message(
+                role="user",
+                content=[
+                    ContentBlockText(type="text", text="Look at this"),
+                    ContentBlockImage(
+                        type="image",
+                        source={"type": "url", "url": "https://example.com/x.png"},
+                    ),
+                ],
+            )
+        ],
+        max_tokens=256,
+        stream=True,
+    )
+
+    body = provider._build_request_body(req, thinking_enabled=False)
+
+    assert body["messages"][0]["role"] == "user"
+    assert body["messages"][0]["content"] == [
+        {"type": "text", "text": "Look at this"},
+        {"type": "image_url", "image_url": {"url": "https://example.com/x.png"}},
+    ]

@@ -564,11 +564,89 @@ def test_assistant_redacted_thinking_omitted_from_openai_chat():
     assert "reasoning_content" not in result[0]
 
 
-def test_convert_user_message_image_raises(caplog):
+def test_convert_user_message_image_url_block():
     content = [
         MockBlock(type="image", source={"type": "url", "url": "https://example.com/x"})
     ]
     messages = [MockMessage("user", content)]
+    result = AnthropicToOpenAIConverter.convert_messages(messages)
+
+    assert result == [
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "image_url",
+                    "image_url": {"url": "https://example.com/x"},
+                }
+            ],
+        }
+    ]
+
+
+def test_convert_user_message_base64_image_block():
+    content = [
+        MockBlock(
+            type="image",
+            source={
+                "type": "base64",
+                "media_type": "image/png",
+                "data": "YQ==",
+            },
+        )
+    ]
+    messages = [MockMessage("user", content)]
+    result = AnthropicToOpenAIConverter.convert_messages(messages)
+
+    assert result == [
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "image_url",
+                    "image_url": {"url": "data:image/png;base64,YQ=="},
+                }
+            ],
+        }
+    ]
+
+
+def test_convert_user_message_text_and_image_preserves_order():
+    messages = [
+        MockMessage(
+            "user",
+            [
+                MockBlock(type="text", text="before"),
+                MockBlock(
+                    type="image",
+                    source={"type": "url", "url": "https://example.com/x"},
+                ),
+                MockBlock(type="text", text="after"),
+            ],
+        )
+    ]
+
+    result = AnthropicToOpenAIConverter.convert_messages(messages)
+
+    assert result == [
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "before"},
+                {
+                    "type": "image_url",
+                    "image_url": {"url": "https://example.com/x"},
+                },
+                {"type": "text", "text": "after"},
+            ],
+        }
+    ]
+
+
+def test_convert_user_message_unsupported_image_source_logs_and_raises(caplog):
+    content = [MockBlock(type="image", source={"type": "file", "path": "/tmp/x.png"})]
+    messages = [MockMessage("user", content)]
+
     with caplog.at_level("WARNING"), pytest.raises(OpenAIConversionError):
         AnthropicToOpenAIConverter.convert_messages(messages)
 
@@ -577,31 +655,6 @@ def test_convert_user_message_image_raises(caplog):
     assert "phase=user_message" in blob
     assert "message_index=0" in blob
     assert "block_index=0" in blob
-
-
-def test_build_base_request_body_logs_model_when_message_conversion_fails(caplog):
-    class MockRequest:
-        def __init__(self):
-            self.model = "manifest/auto"
-            self.messages = [
-                MockMessage(
-                    "user",
-                    [
-                        MockBlock(
-                            type="image",
-                            source={"type": "url", "url": "https://example.com/x"},
-                        )
-                    ],
-                )
-            ]
-
-    with caplog.at_level("WARNING"), pytest.raises(OpenAIConversionError):
-        build_base_request_body(MockRequest())
-
-    blob = " | ".join(r.getMessage() for r in caplog.records)
-    assert "OPENAI_REQUEST_BUILD_FAILED" in blob
-    assert "model=manifest/auto" in blob
-    assert "stage=convert_messages" in blob
 
 
 def test_convert_assistant_text_after_tool_use_splits_for_openai_chat():

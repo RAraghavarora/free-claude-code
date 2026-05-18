@@ -105,6 +105,70 @@ def _think_tag_content(reasoning: str) -> str:
     return f"<think>\n{reasoning}\n</think>"
 
 
+def _openai_user_content_from_parts(parts: list[dict[str, Any]]) -> str | list[dict[str, Any]]:
+    if not parts:
+        return ""
+    if all(part.get("type") == "text" for part in parts):
+        return "\n".join(str(part.get("text", "")) for part in parts)
+    return list(parts)
+
+
+def _append_openai_user_text_part(
+    parts: list[dict[str, Any]], text_parts: list[str]
+) -> None:
+    if not text_parts:
+        return
+    parts.append({"type": "text", "text": "\n".join(text_parts)})
+    text_parts.clear()
+
+
+def _openai_image_url_from_source(source: Any) -> str:
+    if not isinstance(source, dict):
+        raise OpenAIConversionError(
+            "User message image blocks must include a valid source object for "
+            "OpenAI chat conversion."
+        )
+
+    source_type = source.get("type")
+    if source_type == "url":
+        url = source.get("url")
+        if isinstance(url, str) and url.strip():
+            return url.strip()
+        raise OpenAIConversionError(
+            "User message image URL blocks must include a non-empty source.url "
+            "for OpenAI chat conversion."
+        )
+
+    if source_type == "base64":
+        media_type = source.get("media_type")
+        data = source.get("data")
+        if not isinstance(data, str) or not data.strip():
+            raise OpenAIConversionError(
+                "User message base64 image blocks must include non-empty "
+                "source.data for OpenAI chat conversion."
+            )
+        media = media_type if isinstance(media_type, str) and media_type else "image/png"
+        return f"data:{media};base64,{data.strip()}"
+
+    raise OpenAIConversionError(
+        "User message image blocks use an unsupported source type for OpenAI "
+        f"chat conversion: {source_type!r}."
+    )
+
+
+def _append_openai_user_image_part(parts: list[dict[str, Any]], block: Any) -> None:
+    parts.append(
+        {
+            "type": "image_url",
+            "image_url": {
+                "url": _openai_image_url_from_source(
+                    get_block_attr(block, "source", None)
+                )
+            },
+        }
+    )
+
+
 def _raise_unsupported_user_image_block(
     *, phase: str, message_index: int, block_index: int
 ) -> None:
@@ -467,25 +531,39 @@ class AnthropicToOpenAIConverter:
 
         result: list[dict[str, Any]] = []
         text_parts: list[str] = []
+        content_parts: list[dict[str, Any]] = []
         cleared = False
 
         def flush_text() -> None:
-            if text_parts:
-                result.append({"role": "user", "content": "\n".join(text_parts)})
-                text_parts.clear()
+            _append_openai_user_text_part(content_parts, text_parts)
+
+        def flush_user_content() -> None:
+            flush_text()
+            if content_parts:
+                result.append(
+                    {
+                        "role": "user",
+                        "content": _openai_user_content_from_parts(content_parts),
+                    }
+                )
+                content_parts.clear()
 
         for block_index, block in enumerate(content):
             block_type = get_block_type(block)
             if block_type == "text":
                 text_parts.append(get_block_attr(block, "text", ""))
             elif block_type == "image":
-                _raise_unsupported_user_image_block(
-                    phase="user_message_with_injection",
-                    message_index=message_index,
-                    block_index=block_index,
-                )
-            elif block_type == "tool_result":
                 flush_text()
+                try:
+                    _append_openai_user_image_part(content_parts, block)
+                except OpenAIConversionError:
+                    _raise_unsupported_user_image_block(
+                        phase="user_message_with_injection",
+                        message_index=message_index,
+                        block_index=block_index,
+                    )
+            elif block_type == "tool_result":
+                flush_user_content()
                 tool_content = get_block_attr(block, "content", "")
                 serialized = _serialize_tool_result_content(tool_content)
                 tuid = get_block_attr(block, "tool_use_id")
@@ -510,7 +588,7 @@ class AnthropicToOpenAIConverter:
             else:
                 pass
 
-        flush_text()
+        flush_user_content()
         return {"messages": result, "cleared_pending": cleared}
 
     @staticmethod
@@ -519,11 +597,21 @@ class AnthropicToOpenAIConverter:
     ) -> list[dict[str, Any]]:
         result: list[dict[str, Any]] = []
         text_parts: list[str] = []
+        content_parts: list[dict[str, Any]] = []
 
         def flush_text() -> None:
-            if text_parts:
-                result.append({"role": "user", "content": "\n".join(text_parts)})
-                text_parts.clear()
+            _append_openai_user_text_part(content_parts, text_parts)
+
+        def flush_user_content() -> None:
+            flush_text()
+            if content_parts:
+                result.append(
+                    {
+                        "role": "user",
+                        "content": _openai_user_content_from_parts(content_parts),
+                    }
+                )
+                content_parts.clear()
 
         for block_index, block in enumerate(content):
             block_type = get_block_type(block)
@@ -531,13 +619,17 @@ class AnthropicToOpenAIConverter:
             if block_type == "text":
                 text_parts.append(get_block_attr(block, "text", ""))
             elif block_type == "image":
-                _raise_unsupported_user_image_block(
-                    phase="user_message",
-                    message_index=message_index,
-                    block_index=block_index,
-                )
-            elif block_type == "tool_result":
                 flush_text()
+                try:
+                    _append_openai_user_image_part(content_parts, block)
+                except OpenAIConversionError:
+                    _raise_unsupported_user_image_block(
+                        phase="user_message",
+                        message_index=message_index,
+                        block_index=block_index,
+                    )
+            elif block_type == "tool_result":
+                flush_user_content()
                 tool_content = get_block_attr(block, "content", "")
                 serialized = _serialize_tool_result_content(tool_content)
                 result.append(
@@ -548,7 +640,7 @@ class AnthropicToOpenAIConverter:
                     }
                 )
 
-        flush_text()
+        flush_user_content()
         return result
 
     @staticmethod

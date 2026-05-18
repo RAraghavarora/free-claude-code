@@ -19,6 +19,7 @@ WAFER_DEFAULT_BASE = "https://pass.wafer.ai/v1"
 DEEPSEEK_ANTHROPIC_DEFAULT_BASE = "https://api.deepseek.com/anthropic"
 # Historical export name: DeepSeek upstream is the native Anthropic path above.
 DEEPSEEK_DEFAULT_BASE = DEEPSEEK_ANTHROPIC_DEFAULT_BASE
+FIREWORKS_DEFAULT_BASE = "https://api.fireworks.ai/inference/v1"
 OPENROUTER_DEFAULT_BASE = "https://openrouter.ai/api/v1"
 LMSTUDIO_DEFAULT_BASE = "http://localhost:1234/v1"
 LLAMACPP_DEFAULT_BASE = "http://localhost:8080/v1"
@@ -156,6 +157,16 @@ PROVIDER_CATALOG: dict[str, ProviderDescriptor] = {
         base_url_attr="manifest_base_url",
         proxy_attr="manifest_proxy",
         capabilities=("chat", "streaming", "tools", "local"),
+    ),
+    "fireworks": ProviderDescriptor(
+        provider_id="fireworks",
+        transport_type="openai_chat",
+        credential_env="FIREWORKS_API_KEY",
+        credential_url="https://fireworks.ai/account/api-keys",
+        credential_attr="fireworks_api_key",
+        default_base_url=FIREWORKS_DEFAULT_BASE,
+        proxy_attr="fireworks_proxy",
+        capabilities=("chat", "streaming", "tools", "thinking", "rate_limit"),
     ),
 }
 

@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
 
+from loguru import logger
 from pydantic import BaseModel
 
 from .content import get_block_attr, get_block_type
@@ -104,6 +105,22 @@ def _think_tag_content(reasoning: str) -> str:
     return f"<think>\n{reasoning}\n</think>"
 
 
+def _raise_unsupported_user_image_block(
+    *, phase: str, message_index: int, block_index: int
+) -> None:
+    logger.warning(
+        "OPENAI_CONVERSION_UNSUPPORTED_USER_IMAGE_BLOCK phase={} message_index={} block_index={}",
+        phase,
+        message_index,
+        block_index,
+    )
+    raise OpenAIConversionError(
+        "User message image blocks are not supported for OpenAI chat "
+        "conversion; use a vision-capable native Anthropic provider or "
+        "extend the converter."
+    )
+
+
 @dataclass
 class _PendingAfterTools:
     """Assistant content that appears after ``tool_use`` in an Anthropic message.
@@ -191,7 +208,7 @@ class AnthropicToOpenAIConverter:
         result: list[dict[str, Any]] = []
         pending: _PendingAfterTools | None = None
 
-        for msg in messages:
+        for message_index, msg in enumerate(messages):
             role = msg.role
             content = msg.content
             reasoning_content = _clean_reasoning_content(
@@ -267,19 +284,25 @@ class AnthropicToOpenAIConverter:
                             pending = None
                             result.extend(
                                 AnthropicToOpenAIConverter._convert_user_message(
-                                    content
+                                    content,
+                                    message_index=message_index,
                                 )
                             )
                         else:
                             pieces = AnthropicToOpenAIConverter._convert_user_message_with_injection(
-                                content, pending
+                                content,
+                                pending,
+                                message_index=message_index,
                             )
                             result.extend(pieces["messages"])
                             if pieces["cleared_pending"]:
                                 pending = None
                     else:
                         result.extend(
-                            AnthropicToOpenAIConverter._convert_user_message(content)
+                            AnthropicToOpenAIConverter._convert_user_message(
+                                content,
+                                message_index=message_index,
+                            )
                         )
             else:
                 if role == "user" and pending is not None and pending.needs_deferred():
@@ -430,12 +453,15 @@ class AnthropicToOpenAIConverter:
 
     @staticmethod
     def _convert_user_message_with_injection(
-        content: list[Any], pending: _PendingAfterTools
+        content: list[Any], pending: _PendingAfterTools, *, message_index: int
     ) -> dict[str, Any]:
         """Convert user list blocks, emitting deferred assistant after all tool results."""
         if not pending.needs_deferred() or not pending.remaining_tool_ids:
             return {
-                "messages": AnthropicToOpenAIConverter._convert_user_message(content),
+                "messages": AnthropicToOpenAIConverter._convert_user_message(
+                    content,
+                    message_index=message_index,
+                ),
                 "cleared_pending": False,
             }
 
@@ -448,15 +474,15 @@ class AnthropicToOpenAIConverter:
                 result.append({"role": "user", "content": "\n".join(text_parts)})
                 text_parts.clear()
 
-        for block in content:
+        for block_index, block in enumerate(content):
             block_type = get_block_type(block)
             if block_type == "text":
                 text_parts.append(get_block_attr(block, "text", ""))
             elif block_type == "image":
-                raise OpenAIConversionError(
-                    "User message image blocks are not supported for OpenAI chat "
-                    "conversion; use a vision-capable native Anthropic provider or "
-                    "extend the converter."
+                _raise_unsupported_user_image_block(
+                    phase="user_message_with_injection",
+                    message_index=message_index,
+                    block_index=block_index,
                 )
             elif block_type == "tool_result":
                 flush_text()
@@ -488,7 +514,9 @@ class AnthropicToOpenAIConverter:
         return {"messages": result, "cleared_pending": cleared}
 
     @staticmethod
-    def _convert_user_message(content: list[Any]) -> list[dict[str, Any]]:
+    def _convert_user_message(
+        content: list[Any], *, message_index: int
+    ) -> list[dict[str, Any]]:
         result: list[dict[str, Any]] = []
         text_parts: list[str] = []
 
@@ -497,16 +525,16 @@ class AnthropicToOpenAIConverter:
                 result.append({"role": "user", "content": "\n".join(text_parts)})
                 text_parts.clear()
 
-        for block in content:
+        for block_index, block in enumerate(content):
             block_type = get_block_type(block)
 
             if block_type == "text":
                 text_parts.append(get_block_attr(block, "text", ""))
             elif block_type == "image":
-                raise OpenAIConversionError(
-                    "User message image blocks are not supported for OpenAI chat "
-                    "conversion; use a vision-capable native Anthropic provider or "
-                    "extend the converter."
+                _raise_unsupported_user_image_block(
+                    phase="user_message",
+                    message_index=message_index,
+                    block_index=block_index,
                 )
             elif block_type == "tool_result":
                 flush_text()
@@ -579,10 +607,18 @@ def build_base_request_body(
 ) -> dict[str, Any]:
     """Build the common parts of an OpenAI-format request body."""
     _openai_reject_native_only_top_level_fields(request_data)
-    messages = AnthropicToOpenAIConverter.convert_messages(
-        request_data.messages,
-        reasoning_replay=reasoning_replay,
-    )
+    try:
+        messages = AnthropicToOpenAIConverter.convert_messages(
+            request_data.messages,
+            reasoning_replay=reasoning_replay,
+        )
+    except OpenAIConversionError:
+        logger.warning(
+            "OPENAI_REQUEST_BUILD_FAILED model={} reasoning_replay={} stage=convert_messages",
+            getattr(request_data, "model", None),
+            reasoning_replay,
+        )
+        raise
 
     system = getattr(request_data, "system", None)
     if system:

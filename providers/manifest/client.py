@@ -2,6 +2,8 @@
 
 from typing import Any
 
+from loguru import logger
+
 from core.anthropic import ReasoningReplayMode, build_base_request_body
 from core.anthropic.conversion import OpenAIConversionError
 from providers.base import ProviderConfig
@@ -34,4 +36,10 @@ class ManifestProvider(OpenAIChatTransport):
                 else ReasoningReplayMode.DISABLED,
             )
         except OpenAIConversionError as exc:
+            logger.warning(
+                "MANIFEST_REQUEST_BUILD_FAILED model={} thinking_enabled={} exc_type={}",
+                getattr(request, "model", None),
+                thinking_enabled,
+                type(exc).__name__,
+            )
             raise InvalidRequestError(str(exc)) from exc

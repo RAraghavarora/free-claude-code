@@ -46,6 +46,7 @@ def _make_mock_settings(**overrides):
     mock.kimi_proxy = ""
     mock.wafer_proxy = ""
     mock.opencode_proxy = ""
+    mock.opencode_go_proxy = ""
     mock.zai_proxy = ""
     mock.nim = NimSettings()
     mock.http_read_timeout = 300.0

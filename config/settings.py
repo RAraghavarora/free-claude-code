@@ -119,7 +119,8 @@ class Settings(BaseSettings):
     # ==================== Wafer Config ====================
     wafer_api_key: str = Field(default="", validation_alias="WAFER_API_KEY")
 
-    # ==================== OpenCode Zen Config ====================
+    # ==================== OpenCode Zen / OpenCode Go ====================
+    # Same key from opencode.ai/auth; zen uses prefix ``opencode/``, Go uses ``opencode_go/``.
     opencode_api_key: str = Field(default="", validation_alias="OPENCODE_API_KEY")
 
     # ==================== Z.ai Config ====================
@@ -187,6 +188,7 @@ class Settings(BaseSettings):
     kimi_proxy: str = Field(default="", validation_alias="KIMI_PROXY")
     wafer_proxy: str = Field(default="", validation_alias="WAFER_PROXY")
     opencode_proxy: str = Field(default="", validation_alias="OPENCODE_PROXY")
+    opencode_go_proxy: str = Field(default="", validation_alias="OPENCODE_GO_PROXY")
     zai_proxy: str = Field(default="", validation_alias="ZAI_PROXY")
     fireworks_proxy: str = Field(default="", validation_alias="FIREWORKS_PROXY")
 

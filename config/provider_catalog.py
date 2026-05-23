@@ -25,6 +25,7 @@ LMSTUDIO_DEFAULT_BASE = "http://localhost:1234/v1"
 LLAMACPP_DEFAULT_BASE = "http://localhost:8080/v1"
 OLLAMA_DEFAULT_BASE = "http://localhost:11434"
 OPENCODE_DEFAULT_BASE = "https://opencode.ai/zen/v1"
+OPENCODE_GO_DEFAULT_BASE = "https://opencode.ai/zen/go/v1"
 ZAI_DEFAULT_BASE = "https://api.z.ai/api/coding/paas/v4"
 MANIFEST_DEFAULT_BASE = "http://localhost:2099/v1"
 
@@ -138,6 +139,16 @@ PROVIDER_CATALOG: dict[str, ProviderDescriptor] = {
         proxy_attr="opencode_proxy",
         capabilities=("chat", "streaming", "tools", "thinking", "rate_limit"),
     ),
+    "opencode_go": ProviderDescriptor(
+        provider_id="opencode_go",
+        transport_type="openai_chat",
+        credential_env="OPENCODE_API_KEY",
+        credential_url="https://opencode.ai/auth",
+        credential_attr="opencode_api_key",
+        default_base_url=OPENCODE_GO_DEFAULT_BASE,
+        proxy_attr="opencode_go_proxy",
+        capabilities=("chat", "streaming", "tools", "thinking", "rate_limit"),
+    ),
     "zai": ProviderDescriptor(
         provider_id="zai",
         transport_type="openai_chat",
@@ -167,17 +178,6 @@ PROVIDER_CATALOG: dict[str, ProviderDescriptor] = {
         default_base_url=FIREWORKS_DEFAULT_BASE,
         proxy_attr="fireworks_proxy",
         capabilities=("chat", "streaming", "tools", "thinking", "rate_limit"),
-    ),
-    "manifest": ProviderDescriptor(
-        provider_id="manifest",
-        transport_type="openai_chat",
-        credential_env="MANIFEST_API_KEY",
-        credential_attr="manifest_api_key",
-        credential_url="https://manifest.build/docs",
-        default_base_url=MANIFEST_DEFAULT_BASE,
-        base_url_attr="manifest_base_url",
-        proxy_attr="manifest_proxy",
-        capabilities=("chat", "streaming", "tools", "local"),
     ),
 }
 

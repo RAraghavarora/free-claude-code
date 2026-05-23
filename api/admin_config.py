@@ -160,12 +160,15 @@ FIELDS: tuple[ConfigFieldSpec, ...] = (
     ),
     ConfigFieldSpec(
         "OPENCODE_API_KEY",
-        "OpenCode Zen API Key",
+        "OpenCode API Key",
         "providers",
         "secret",
         settings_attr="opencode_api_key",
         secret=True,
-        description="OpenCode Zen curated model gateway at opencode.ai.",
+        description=(
+            "OpenCode Zen curated gateway (opencode.ai/zen/v1) and OpenCode Go subscription "
+            "gateway (opencode.ai/zen/go/v1); single key from opencode.ai/auth."
+        ),
     ),
     ConfigFieldSpec(
         "ZAI_API_KEY",
@@ -175,6 +178,15 @@ FIELDS: tuple[ConfigFieldSpec, ...] = (
         settings_attr="zai_api_key",
         secret=True,
         description="Z.ai Coding Plan API key.",
+    ),
+    ConfigFieldSpec(
+        "FIREWORKS_API_KEY",
+        "Fireworks API Key",
+        "providers",
+        "secret",
+        settings_attr="fireworks_api_key",
+        secret=True,
+        description="Fireworks AI inference API key.",
     ),
     ConfigFieldSpec(
         "LM_STUDIO_BASE_URL",
@@ -261,11 +273,29 @@ FIELDS: tuple[ConfigFieldSpec, ...] = (
         advanced=True,
     ),
     ConfigFieldSpec(
+        "OPENCODE_GO_PROXY",
+        "OpenCode Go Proxy",
+        "providers",
+        "secret",
+        settings_attr="opencode_go_proxy",
+        secret=True,
+        advanced=True,
+    ),
+    ConfigFieldSpec(
         "ZAI_PROXY",
         "Z.ai Proxy",
         "providers",
         "secret",
         settings_attr="zai_proxy",
+        secret=True,
+        advanced=True,
+    ),
+    ConfigFieldSpec(
+        "FIREWORKS_PROXY",
+        "Fireworks Proxy",
+        "providers",
+        "secret",
+        settings_attr="fireworks_proxy",
         secret=True,
         advanced=True,
     ),
@@ -708,6 +738,12 @@ FIELDS: tuple[ConfigFieldSpec, ...] = (
     ConfigFieldSpec(
         "FCC_SMOKE_MODEL_OPENCODE",
         "Smoke OpenCode Zen Model",
+        "smoke",
+        advanced=True,
+    ),
+    ConfigFieldSpec(
+        "FCC_SMOKE_MODEL_OPENCODE_GO",
+        "Smoke OpenCode Go Model",
         "smoke",
         advanced=True,
     ),

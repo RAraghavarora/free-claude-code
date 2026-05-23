@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from config.nim import NimSettings
-from config.provider_catalog import ZAI_DEFAULT_BASE
+from config.provider_catalog import PROVIDER_CATALOG, ZAI_DEFAULT_BASE
 from config.provider_ids import SUPPORTED_PROVIDER_IDS
 from providers.deepseek import DeepSeekProvider
 from providers.exceptions import UnknownProviderTypeError
@@ -48,6 +48,7 @@ def _make_settings(**overrides):
     mock.kimi_proxy = ""
     mock.wafer_proxy = ""
     mock.opencode_proxy = ""
+    mock.opencode_go_proxy = ""
     mock.zai_proxy = ""
     mock.manifest_proxy = ""
     mock.provider_rate_limit = 40
@@ -113,6 +114,33 @@ def test_zai_provider_config_ignores_stale_base_url_setting():
     assert config.base_url == ZAI_DEFAULT_BASE
 
 
+def test_opencode_go_provider_config_uses_correct_base_url_and_name():
+    with patch("httpx.AsyncClient"):
+        provider = create_provider("opencode_go", _make_settings())
+
+    assert isinstance(provider, OpenCodeProvider)
+    assert provider._base_url == "https://opencode.ai/zen/go/v1"
+    assert provider._provider_name == "OPENCODE_GO"
+    assert provider._api_key == "test_opencode_key"
+
+
+def test_opencode_go_catalog_uses_opencode_api_key() -> None:
+    desc = PROVIDER_CATALOG["opencode_go"]
+
+    assert desc.credential_env == "OPENCODE_API_KEY"
+    assert desc.credential_attr == "opencode_api_key"
+
+
+def test_build_provider_config_opencode_go_uses_opencode_api_key() -> None:
+    descriptor = PROVIDER_CATALOG["opencode_go"]
+    settings = _make_settings(opencode_api_key="shared-opencode-token")
+
+    config = build_provider_config(descriptor, settings)
+
+    assert config.api_key == "shared-opencode-token"
+
+
+>>>>>>> origin/main
 def test_create_provider_uses_native_openrouter_by_default():
     with patch("httpx.AsyncClient"):
         provider = create_provider("open_router", _make_settings())
@@ -130,6 +158,7 @@ def test_create_provider_instantiates_each_builtin():
         "ollama": OllamaProvider,
         "wafer": WaferProvider,
         "opencode": OpenCodeProvider,
+        "opencode_go": OpenCodeProvider,
         "zai": ZaiProvider,
         "manifest": ManifestProvider,
     }

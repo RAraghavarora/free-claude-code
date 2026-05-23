@@ -52,22 +52,34 @@ def _tool_input_schema(tool: Any) -> dict[str, Any]:
     Some providers (e.g., Gemini) reject JSON Schema keywords that are not part of the
     OpenAI function calling spec, such as ``propertyNames`` or ``exclusiveMinimum``.
     We therefore filter the schema to only include keys known to be supported by the
-    OpenAI‑compatible endpoint.
+    OpenAI-compatible endpoint.
     """
     schema = getattr(tool, "input_schema", None)
     if not isinstance(schema, dict):
         return {"type": "object", "properties": {}}
 
-    # Allowed top‑level keys per the OpenAI spec.
+    # Allowed top-level keys per the OpenAI spec.
     allowed_keys = {"type", "properties", "required", "description", "enum", "default"}
     # ``properties`` is itself a dict of property definitions; we filter each property.
     filtered = {k: v for k, v in schema.items() if k in allowed_keys}
     if "properties" in filtered and isinstance(filtered["properties"], dict):
-        allowed_prop_keys = {"type", "description", "enum", "default", "items", "minLength", "maxLength", "minimum", "maximum"}
+        allowed_prop_keys = {
+            "type",
+            "description",
+            "enum",
+            "default",
+            "items",
+            "minLength",
+            "maxLength",
+            "minimum",
+            "maximum",
+        }
         new_props = {}
         for prop_name, prop_schema in filtered["properties"].items():
             if isinstance(prop_schema, dict):
-                new_props[prop_name] = {k: v for k, v in prop_schema.items() if k in allowed_prop_keys}
+                new_props[prop_name] = {
+                    k: v for k, v in prop_schema.items() if k in allowed_prop_keys
+                }
             else:
                 new_props[prop_name] = prop_schema
         filtered["properties"] = new_props
@@ -105,7 +117,9 @@ def _think_tag_content(reasoning: str) -> str:
     return f"<think>\n{reasoning}\n</think>"
 
 
-def _openai_user_content_from_parts(parts: list[dict[str, Any]]) -> str | list[dict[str, Any]]:
+def _openai_user_content_from_parts(
+    parts: list[dict[str, Any]],
+) -> str | list[dict[str, Any]]:
     if not parts:
         return ""
     if all(part.get("type") == "text" for part in parts):
@@ -147,7 +161,9 @@ def _openai_image_url_from_source(source: Any) -> str:
                 "User message base64 image blocks must include non-empty "
                 "source.data for OpenAI chat conversion."
             )
-        media = media_type if isinstance(media_type, str) and media_type else "image/png"
+        media = (
+            media_type if isinstance(media_type, str) and media_type else "image/png"
+        )
         return f"data:{media};base64,{data.strip()}"
 
     raise OpenAIConversionError(

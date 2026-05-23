@@ -207,7 +207,6 @@ def test_admin_apply_writes_fireworks_key_and_masks_preview(monkeypatch, tmp_pat
     assert "FIREWORKS_API_KEY=fw-secret" in text
 
 
-
 def test_admin_apply_preserves_hidden_diagnostics_and_smoke_values(
     monkeypatch, tmp_path
 ):

@@ -140,7 +140,6 @@ def test_build_provider_config_opencode_go_uses_opencode_api_key() -> None:
     assert config.api_key == "shared-opencode-token"
 
 
->>>>>>> origin/main
 def test_create_provider_uses_native_openrouter_by_default():
     with patch("httpx.AsyncClient"):
         provider = create_provider("open_router", _make_settings())

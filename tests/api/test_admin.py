@@ -25,6 +25,7 @@ def _set_home(monkeypatch, tmp_path: Path) -> None:
 def _clear_process_config(monkeypatch) -> None:
     for key in (
         "MODEL",
+        "DEEPSEEK_API_KEY",
         "NVIDIA_NIM_API_KEY",
         "OPENROUTER_API_KEY",
         "ANTHROPIC_AUTH_TOKEN",

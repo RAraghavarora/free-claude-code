@@ -10,7 +10,6 @@ from config.provider_catalog import (
     KIMI_DEFAULT_BASE,
     LLAMACPP_DEFAULT_BASE,
     LMSTUDIO_DEFAULT_BASE,
-    MANIFEST_DEFAULT_BASE,
     MISTRAL_DEFAULT_BASE,
     NVIDIA_NIM_DEFAULT_BASE,
     OLLAMA_DEFAULT_BASE,
@@ -31,7 +30,6 @@ __all__ = (
     "KIMI_DEFAULT_BASE",
     "LLAMACPP_DEFAULT_BASE",
     "LMSTUDIO_DEFAULT_BASE",
-    "MANIFEST_DEFAULT_BASE",
     "MISTRAL_DEFAULT_BASE",
     "NVIDIA_NIM_DEFAULT_BASE",
     "OLLAMA_DEFAULT_BASE",
@@ -41,3 +39,8 @@ __all__ = (
     "WAFER_DEFAULT_BASE",
     "ZAI_DEFAULT_BASE",
 )
+
+# --- manifest provider (self-contained at bottom to reduce merge conflicts) ---
+from config.provider_catalog import MANIFEST_DEFAULT_BASE
+
+__all__ += ("MANIFEST_DEFAULT_BASE",)

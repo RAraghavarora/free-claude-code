@@ -212,15 +212,6 @@ FIELDS: tuple[ConfigFieldSpec, ...] = (
         description="Fireworks AI inference API key.",
     ),
     ConfigFieldSpec(
-        "MANIFEST_API_KEY",
-        "Manifest API Key",
-        "providers",
-        "secret",
-        settings_attr="manifest_api_key",
-        secret=True,
-        description="Manifest API key.",
-    ),
-    ConfigFieldSpec(
         "GEMINI_API_KEY",
         "Gemini API Key",
         "providers",
@@ -386,15 +377,6 @@ FIELDS: tuple[ConfigFieldSpec, ...] = (
         "providers",
         "secret",
         settings_attr="fireworks_proxy",
-        secret=True,
-        advanced=True,
-    ),
-    ConfigFieldSpec(
-        "MANIFEST_PROXY",
-        "Manifest Proxy",
-        "providers",
-        "secret",
-        settings_attr="manifest_proxy",
         secret=True,
         advanced=True,
     ),
@@ -1319,3 +1301,28 @@ def fields_with_attrs() -> Iterable[ConfigFieldSpec]:
     """Yield fields that validate through Settings."""
 
     return (field for field in FIELDS if field.settings_attr is not None)
+
+
+# --- manifest provider (self-contained at bottom to reduce merge conflicts) ---
+_MANIFEST_FIELDS: tuple[ConfigFieldSpec, ...] = (
+    ConfigFieldSpec(
+        "MANIFEST_API_KEY",
+        "Manifest API Key",
+        "providers",
+        "secret",
+        settings_attr="manifest_api_key",
+        secret=True,
+        description="Manifest API key.",
+    ),
+    ConfigFieldSpec(
+        "MANIFEST_PROXY",
+        "Manifest Proxy",
+        "providers",
+        "secret",
+        settings_attr="manifest_proxy",
+        secret=True,
+        advanced=True,
+    ),
+)
+FIELDS = FIELDS + _MANIFEST_FIELDS
+FIELD_BY_KEY = {field.key: field for field in FIELDS}

@@ -17,7 +17,6 @@ from providers.groq import GroqProvider
 from providers.kimi import KimiProvider
 from providers.llamacpp import LlamaCppProvider
 from providers.lmstudio import LMStudioProvider
-from providers.manifest import ManifestProvider
 from providers.mistral import MistralProvider
 from providers.nvidia_nim import NvidiaNimProvider
 from providers.ollama import OllamaProvider
@@ -48,8 +47,6 @@ def _make_settings(**overrides):
     mock.lm_studio_base_url = "http://localhost:1234/v1"
     mock.llamacpp_base_url = "http://localhost:8080/v1"
     mock.ollama_base_url = "http://localhost:11434"
-    mock.manifest_base_url = "http://localhost:2099/v1"
-    mock.manifest_api_key = "mnfst_smoke_test_key"
     mock.nvidia_nim_proxy = ""
     mock.open_router_proxy = ""
     mock.lmstudio_proxy = ""
@@ -64,7 +61,6 @@ def _make_settings(**overrides):
     mock.zai_proxy = ""
     mock.fireworks_proxy = ""
     mock.fireworks_api_key = "test_fireworks_key"
-    mock.manifest_proxy = ""
     mock.gemini_api_key = ""
     mock.gemini_proxy = ""
     mock.groq_api_key = ""
@@ -189,7 +185,6 @@ def test_create_provider_instantiates_each_builtin():
         "opencode": OpenCodeProvider,
         "opencode_go": OpenCodeProvider,
         "zai": ZaiProvider,
-        "manifest": ManifestProvider,
         "gemini": GeminiProvider,
         "groq": GroqProvider,
         "cerebras": CerebrasProvider,
@@ -201,6 +196,15 @@ def test_create_provider_instantiates_each_builtin():
     ):
         for provider_id, provider_cls in cases.items():
             assert isinstance(create_provider(provider_id, settings), provider_cls)
+
+    # --- manifest provider (self-contained at bottom to reduce merge conflicts) ---
+    _manifest_settings = _make_settings()
+    _manifest_settings.manifest_base_url = "http://localhost:2099/v1"
+    _manifest_settings.manifest_api_key = "mnfst_smoke_test_key"
+    _manifest_settings.manifest_proxy = ""
+    from providers.manifest import ManifestProvider
+
+    assert isinstance(create_provider("manifest", _manifest_settings), ManifestProvider)
 
 
 def test_provider_registry_caches_by_provider_id():

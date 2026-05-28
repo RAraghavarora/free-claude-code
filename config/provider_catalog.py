@@ -31,7 +31,6 @@ OLLAMA_DEFAULT_BASE = "http://localhost:11434"
 OPENCODE_DEFAULT_BASE = "https://opencode.ai/zen/v1"
 OPENCODE_GO_DEFAULT_BASE = "https://opencode.ai/zen/go/v1"
 ZAI_DEFAULT_BASE = "https://api.z.ai/api/anthropic/v1"
-MANIFEST_DEFAULT_BASE = "http://localhost:2099/v1"
 # Google AI Studio Gemini API OpenAI-compat layer (not Vertex AI).
 GEMINI_DEFAULT_BASE = "https://generativelanguage.googleapis.com/v1beta/openai/"
 GROQ_DEFAULT_BASE = "https://api.groq.com/openai/v1"
@@ -246,27 +245,6 @@ PROVIDER_CATALOG: dict[str, ProviderDescriptor] = {
             "local",
         ),
     ),
-    "manifest": ProviderDescriptor(
-        provider_id="manifest",
-        transport_type="openai_chat",
-        credential_env="MANIFEST_API_KEY",
-        credential_attr="manifest_api_key",
-        credential_url="https://manifest.build/docs",
-        default_base_url=MANIFEST_DEFAULT_BASE,
-        base_url_attr="manifest_base_url",
-        proxy_attr="manifest_proxy",
-        capabilities=("chat", "streaming", "tools", "local"),
-    ),
-    "fireworks": ProviderDescriptor(
-        provider_id="fireworks",
-        transport_type="openai_chat",
-        credential_env="FIREWORKS_API_KEY",
-        credential_url="https://fireworks.ai/account/api-keys",
-        credential_attr="fireworks_api_key",
-        default_base_url=FIREWORKS_DEFAULT_BASE,
-        proxy_attr="fireworks_proxy",
-        capabilities=("chat", "streaming", "tools", "thinking", "rate_limit"),
-    ),
 }
 
 # Key order:
@@ -278,3 +256,18 @@ SUPPORTED_PROVIDER_IDS: tuple[str, ...] = tuple(PROVIDER_CATALOG.keys())
 
 if len(set(SUPPORTED_PROVIDER_IDS)) != len(SUPPORTED_PROVIDER_IDS):
     raise AssertionError("Duplicate provider ids in PROVIDER_CATALOG key order")
+
+# --- manifest provider (self-contained at bottom to reduce merge conflicts) ---
+MANIFEST_DEFAULT_BASE = "http://localhost:2099/v1"
+PROVIDER_CATALOG["manifest"] = ProviderDescriptor(
+    provider_id="manifest",
+    transport_type="openai_chat",
+    credential_env="MANIFEST_API_KEY",
+    credential_attr="manifest_api_key",
+    credential_url="https://manifest.build/docs",
+    default_base_url=MANIFEST_DEFAULT_BASE,
+    base_url_attr="manifest_base_url",
+    proxy_attr="manifest_proxy",
+    capabilities=("chat", "streaming", "tools", "local"),
+)
+SUPPORTED_PROVIDER_IDS = tuple(PROVIDER_CATALOG.keys())

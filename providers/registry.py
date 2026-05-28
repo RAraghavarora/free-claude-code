@@ -112,12 +112,6 @@ def _create_zai(config: ProviderConfig, _settings: Settings) -> BaseProvider:
     return ZaiProvider(config)
 
 
-def _create_manifest(config: ProviderConfig, _settings: Settings) -> BaseProvider:
-    from providers.manifest import ManifestProvider
-
-    return ManifestProvider(config)
-
-
 def _create_fireworks(config: ProviderConfig, _settings: Settings) -> BaseProvider:
     from providers.fireworks import FireworksProvider
 
@@ -160,23 +154,7 @@ PROVIDER_FACTORIES: dict[str, ProviderFactory] = {
     "lmstudio": _create_lmstudio,
     "llamacpp": _create_llamacpp,
     "ollama": _create_ollama,
-    "kimi": _create_kimi,
-    "wafer": _create_wafer,
-    "opencode": _create_opencode,
-    "opencode_go": _create_opencode_go,
-    "zai": _create_zai,
-    "manifest": _create_manifest,
-    "fireworks": _create_fireworks,
 }
-
-if set(PROVIDER_DESCRIPTORS) != set(SUPPORTED_PROVIDER_IDS) or set(
-    PROVIDER_FACTORIES
-) != set(SUPPORTED_PROVIDER_IDS):
-    raise AssertionError(
-        "PROVIDER_DESCRIPTORS, PROVIDER_FACTORIES, and SUPPORTED_PROVIDER_IDS are out of sync: "
-        f"descriptors={set(PROVIDER_DESCRIPTORS)!r} factories={set(PROVIDER_FACTORIES)!r} "
-        f"ids={set(SUPPORTED_PROVIDER_IDS)!r}"
-    )
 
 
 def _string_attr(settings: Settings, attr_name: str | None, default: str = "") -> str:
@@ -538,3 +516,23 @@ class ProviderRegistry:
         if len(errors) > 1:
             msg = "One or more provider cleanups failed"
             raise ExceptionGroup(msg, errors)
+
+
+# --- manifest provider (self-contained at bottom to reduce merge conflicts) ---
+def _create_manifest(config: ProviderConfig, _settings: Settings) -> BaseProvider:
+    from providers.manifest import ManifestProvider
+
+    return ManifestProvider(config)
+
+
+PROVIDER_FACTORIES["manifest"] = _create_manifest
+
+# Re-run the set-equality assertion now that manifest is registered.
+if set(PROVIDER_DESCRIPTORS) != set(SUPPORTED_PROVIDER_IDS) or set(
+    PROVIDER_FACTORIES
+) != set(SUPPORTED_PROVIDER_IDS):
+    raise AssertionError(
+        "PROVIDER_DESCRIPTORS, PROVIDER_FACTORIES, and SUPPORTED_PROVIDER_IDS are out of sync: "
+        f"descriptors={set(PROVIDER_DESCRIPTORS)!r} factories={set(PROVIDER_FACTORIES)!r} "
+        f"ids={set(SUPPORTED_PROVIDER_IDS)!r}"
+    )

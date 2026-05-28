@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -54,7 +54,6 @@ PROVIDER_SMOKE_DEFAULT_MODELS: dict[str, str] = {
     "opencode": "opencode/gpt-5.3-codex",
     "opencode_go": "opencode_go/minimax-m2.7",
     "zai": "zai/glm-5.1",
-    "manifest": "manifest/auto",
     "gemini": "gemini/gemini-2.5-flash",
     "groq": "groq/llama-3.3-70b-versatile",
     "cerebras": "cerebras/llama3.1-8b",
@@ -254,10 +253,8 @@ class SmokeConfig:
             return bool(self.settings.opencode_api_key.strip())
         if provider == "zai":
             return bool(self.settings.zai_api_key.strip())
-        if provider == "manifest":
-            base_url = getattr(self.settings, "manifest_base_url", "") or ""
-            api_key = getattr(self.settings, "manifest_api_key", "") or ""
-            return bool(base_url.strip() and api_key.strip())
+        if provider in _EXTRA_PROVIDER_CONFIG_CHECKS:
+            return _EXTRA_PROVIDER_CONFIG_CHECKS[provider](self)
         if provider == "gemini":
             return bool(self.settings.gemini_api_key.strip())
         if provider == "groq":
@@ -408,3 +405,18 @@ def redacted(value: str, env: Mapping[str, str] | None = None) -> str:
         if any(part in key.upper() for part in SECRET_KEY_PARTS):
             result = result.replace(secret, f"<redacted:{key}>")
     return result
+
+
+# --- manifest provider (self-contained at bottom to reduce merge conflicts) ---
+PROVIDER_SMOKE_DEFAULT_MODELS["manifest"] = "manifest/auto"
+
+
+def _check_manifest_config(smoke_config: SmokeConfig) -> bool:
+    base_url = getattr(smoke_config.settings, "manifest_base_url", "") or ""
+    api_key = getattr(smoke_config.settings, "manifest_api_key", "") or ""
+    return bool(base_url.strip() and api_key.strip())
+
+
+_EXTRA_PROVIDER_CONFIG_CHECKS: dict[str, Callable[[SmokeConfig], bool]] = {
+    "manifest": _check_manifest_config,
+}

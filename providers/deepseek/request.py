@@ -31,6 +31,7 @@ _OMITTED_ATTACHMENT_TEXT = (
     "[attachment omitted: DeepSeek does not support image or document inputs]"
 )
 _OMITTED_ATTACHMENT_BLOCK = {"type": "text", "text": _OMITTED_ATTACHMENT_TEXT}
+_OMITTED_TOOL_THINKING_TEXT = "Tool-use reasoning was not returned by the client."
 
 
 def _strip_unsupported_attachment_blocks(messages: Any) -> Any:
@@ -260,6 +261,24 @@ def _remove_deepseek_thinking_hints(data: dict[str, Any]) -> None:
             data.pop("context_management", None)
 
 
+def _sanitize_deepseek_top_level_fields(
+    data: dict[str, Any], *, thinking_enabled: bool
+) -> None:
+    """Drop Anthropic fields that DeepSeek's native compatibility layer rejects."""
+    data.pop("context_management", None)
+
+    output_config = data.get("output_config")
+    if not isinstance(output_config, dict):
+        data.pop("output_config", None)
+        return
+
+    effort = output_config.get("effort")
+    if thinking_enabled and effort is not None:
+        data["output_config"] = {"effort": effort}
+    else:
+        data.pop("output_config", None)
+
+
 def sanitize_deepseek_messages_for_native(
     messages: Any, *, thinking_enabled: bool
 ) -> Any:
@@ -352,11 +371,11 @@ def _normalize_tool_result_content(messages: Any) -> Any:
                 continue
 
             if block.get("type") == "tool_result":
-                # Normalize tool_result content to string
-                normalized_block = dict(block)
-                normalized_block["content"] = _serialize_tool_result_content(
-                    block.get("content")
-                )
+                normalized_block = {
+                    "type": "tool_result",
+                    "tool_use_id": block.get("tool_use_id"),
+                    "content": _serialize_tool_result_content(block.get("content")),
+                }
                 new_content.append(normalized_block)
             else:
                 new_content.append(block)
@@ -366,6 +385,48 @@ def _normalize_tool_result_content(messages: Any) -> Any:
         normalized.append(new_msg)
 
     return normalized
+
+
+def _ensure_tool_use_thinking_replay(messages: Any) -> Any:
+    if not isinstance(messages, list):
+        return messages
+
+    out: list[Any] = []
+    for message in messages:
+        if not isinstance(message, dict) or message.get("role") != "assistant":
+            out.append(message)
+            continue
+
+        content = message.get("content")
+        if not isinstance(content, list):
+            out.append(message)
+            continue
+
+        new_content: list[Any] = []
+        saw_thinking = False
+        inserted = False
+        for block in content:
+            if isinstance(block, dict):
+                if block.get("type") == "thinking" and isinstance(
+                    block.get("thinking"), str
+                ):
+                    saw_thinking = bool(block["thinking"])
+                elif block.get("type") == "tool_use" and not saw_thinking:
+                    new_content.append(
+                        {"type": "thinking", "thinking": _OMITTED_TOOL_THINKING_TEXT}
+                    )
+                    saw_thinking = True
+                    inserted = True
+            new_content.append(block)
+
+        if inserted:
+            new_msg = dict(message)
+            new_msg["content"] = new_content
+            out.append(new_msg)
+        else:
+            out.append(message)
+
+    return out
 
 
 def _strip_reasoning_content_when_native(messages: Any) -> Any:
@@ -427,6 +488,10 @@ def build_request_body(request_data: Any, *, thinking_enabled: bool) -> dict:
                 len(data.get("tools", [])),
             )
 
+    _sanitize_deepseek_top_level_fields(
+        data, thinking_enabled=effective_thinking_enabled
+    )
+
     thinking_cfg = data.pop("thinking", None)
     if effective_thinking_enabled and isinstance(thinking_cfg, dict):
         thinking_payload: dict[str, Any] = {"type": "enabled"}
@@ -436,13 +501,14 @@ def build_request_body(request_data: Any, *, thinking_enabled: bool) -> dict:
         data["thinking"] = thinking_payload
 
     if "messages" in data:
+        messages = sanitize_deepseek_messages_for_native(
+            data["messages"],
+            thinking_enabled=effective_thinking_enabled,
+        )
+        if unsafe_tool_followup:
+            messages = _ensure_tool_use_thinking_replay(messages)
         data["messages"] = _strip_reasoning_content_when_native(
-            _normalize_tool_result_content(
-                sanitize_deepseek_messages_for_native(
-                    data["messages"],
-                    thinking_enabled=effective_thinking_enabled,
-                )
-            )
+            _normalize_tool_result_content(messages)
         )
     if "max_tokens" not in data or data.get("max_tokens") is None:
         data["max_tokens"] = ANTHROPIC_DEFAULT_MAX_OUTPUT_TOKENS

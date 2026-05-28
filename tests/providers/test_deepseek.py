@@ -154,6 +154,23 @@ def test_build_request_body_tool_choice_keeps_thinking(deepseek_provider):
     assert body["tool_choice"] == {"type": "auto"}
 
 
+def test_build_request_body_strips_unsupported_top_level_fields(deepseek_provider):
+    request = MessagesRequest.model_validate(
+        {
+            "model": "m",
+            "messages": [{"role": "user", "content": "x"}],
+            "thinking": {"type": "enabled"},
+            "context_management": {"edits": [{"type": "clear"}]},
+            "output_config": {"effort": "high", "format": "text"},
+        }
+    )
+
+    body = deepseek_provider._build_request_body(request)
+
+    assert "context_management" not in body
+    assert body["output_config"] == {"effort": "high"}
+
+
 def test_build_request_body_respects_global_thinking_disable():
     provider = DeepSeekProvider(
         ProviderConfig(
@@ -266,9 +283,7 @@ def test_tool_history_with_replayable_thinking_preserves_thinking(deepseek_provi
     body = deepseek_provider._build_request_body(request)
 
     assert body["thinking"] == {"type": "enabled", "budget_tokens": 2000}
-    assert body["context_management"] == {
-        "edits": [{"type": "clear_thinking_20251015", "keep": "all"}]
-    }
+    assert "context_management" not in body
     assert body["output_config"] == {"effort": "high"}
     assistant_blocks = body["messages"][0]["content"]
     assert [block["type"] for block in assistant_blocks] == ["thinking", "tool_use"]
@@ -369,15 +384,60 @@ def test_tool_history_without_thinking_disables_thinking_and_hints(deepseek_prov
     body = deepseek_provider._build_request_body(request)
 
     assert "thinking" not in body
-    assert body["context_management"] == {
-        "edits": [{"type": "other_edit", "keep": "all"}],
-        "other": True,
-    }
-    assert body["output_config"] == {"format": "text"}
+    assert "context_management" not in body
+    assert "output_config" not in body
     assert body["tools"][0]["name"] == "Read"
     assert body["tool_choice"] == {"type": "auto"}
-    assert body["messages"][0]["content"][0]["type"] == "tool_use"
+    assert [block["type"] for block in body["messages"][0]["content"]] == [
+        "thinking",
+        "tool_use",
+    ]
     assert body["messages"][1]["content"][0]["type"] == "tool_result"
+
+
+def test_tool_result_keeps_only_deepseek_supported_fields(deepseek_provider):
+    request = MessagesRequest.model_validate(
+        {
+            "model": "m",
+            "messages": [
+                {
+                    "role": "assistant",
+                    "content": [
+                        {
+                            "type": "tool_use",
+                            "id": "t1",
+                            "name": "Bash",
+                            "input": {"command": "git remote -v"},
+                        }
+                    ],
+                },
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": "t1",
+                            "content": [{"type": "text", "text": "origin\turl"}],
+                            "is_error": False,
+                            "cache_control": {"type": "ephemeral"},
+                        }
+                    ],
+                },
+            ],
+        }
+    )
+
+    body = deepseek_provider._build_request_body(request)
+
+    assert body["messages"][1]["content"][0] == {
+        "type": "tool_result",
+        "tool_use_id": "t1",
+        "content": "origin\turl",
+    }
+    assert [block["type"] for block in body["messages"][0]["content"]] == [
+        "thinking",
+        "tool_use",
+    ]
 
 
 def test_tool_history_with_empty_thinking_disables_thinking(deepseek_provider):
@@ -415,7 +475,10 @@ def test_tool_history_with_empty_thinking_disables_thinking(deepseek_provider):
     body = deepseek_provider._build_request_body(request)
 
     assert "thinking" not in body
-    assert [block["type"] for block in body["messages"][0]["content"]] == ["tool_use"]
+    assert [block["type"] for block in body["messages"][0]["content"]] == [
+        "thinking",
+        "tool_use",
+    ]
 
 
 def test_thinking_off_strips_thinking_history():
@@ -478,7 +541,10 @@ def test_passthrough_tool_use_and_result(deepseek_provider):
         }
     )
     body = deepseek_provider._build_request_body(request)
-    assert body["messages"][0]["content"][0]["type"] == "tool_use"
+    assert [block["type"] for block in body["messages"][0]["content"]] == [
+        "thinking",
+        "tool_use",
+    ]
     assert body["messages"][1]["content"][0]["type"] == "tool_result"
 
 

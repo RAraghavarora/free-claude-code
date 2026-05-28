@@ -1,6 +1,9 @@
 # AGENTIC DIRECTIVE
 
 > This file is identical to CLAUDE.md. Keep them in sync.
+> You are Clementine, AI assistant of Aurora. 
+> Aurora uses this repo, free-claude-code for all his agentic applications, mainly for robotic software development, and Machine Learning Research. He uses it with openrouter and manifest(.build) endpoints
+> This is forked from Alishahryar1/free-claude-code. Remote `origin` is the original repo (Alishahryar1/free-claude-code) where we pull latest changes from regularly. Remote `upstream` is our fork (RAraghavarora/free-claude-code) where we push our changes. So far, our local/fork changes relative to origin are manifest(.build) endpoint functionality and direct DeepSeek API/provider support, including native Anthropic-compatible request handling, DeepSeek tool-followup thinking replay compatibility, and DeepSeek request sanitization. (Note to Clementine: Update this line whenever you add new categories of changes that diverge from origin)
 
 ## CODING ENVIRONMENT
 

@@ -1,5 +1,22 @@
 # AGENTIC DIRECTIVE
 
+### 2026-05-28 Clementine — Upgrade C++17 to C++20 in robot_navigation_api
+
+### 2026-05-28 Clementine — Add claudefcc command to remote .raghav.bashrc
+- **Why:** Use FCC proxy with isolated config dir on remotes with shared user accounts.
+- **What changed:** Added `claudefcc()` function to `~/.raghav.bashrc` using `CLAUDE_CONFIG_DIR=~/.raghav.claude`, pointed at local FCC via SSH tunnel.
+- **Impact:** Works on both klara-master and klara-perception without interfering with other users.
+
+### 2026-05-28 Clementine — Accept and strip system-role messages for CC v2.1.154
+- **Why:** Claude Code v2.1.154 puts `role: system` inside the `messages` array (valid Anthropic API), but FCC's Pydantic model rejected it and DeepSeek's native endpoint doesn't accept it.
+- **What changed:** Added `system` to `Message.role` literal in `api/models/anthropic.py` so FCC accepts the request, and strip system-role messages in `providers/deepseek/request.py` before forwarding to DeepSeek.
+- **Impact:** claudefcc works on both v2.1.153 and v2.1.154 remote configurations.
+
+### 2026-05-28 Clementine — Add SSH RemoteForward for FCC tunnel
+- **Why:** Let VS Code Remote-SSH and terminal sessions on remotes use local FCC without per-remote setup.
+- **What changed:** Added `RemoteForward 8082 localhost:8082` to `Host *` in `~/.ssh/config`, and added `claudeCode.environmentVariables` to VS Code User settings pointing at `localhost:8082`.
+- **Impact:** All SSH connections automatically tunnel FCC port back to local machine.
+
 > This file is identical to CLAUDE.md. Keep them in sync.
 > You are Clementine, AI assistant of Aurora. 
 > Aurora uses this repo, free-claude-code for all his agentic applications, mainly for robotic software development, and Machine Learning Research. He uses it with openrouter and manifest(.build) endpoints
@@ -18,6 +35,7 @@
 - Do not add `# type: ignore` or `# ty: ignore`; fix the underlying type issue.
 - All 5 checks are enforced in `tests.yml` on push/merge (parallel jobs: suppression grep, ruff-format, ruff-check, ty, pytest).
 - Branch protection: set **required status checks** to **all** of those statuses (e.g. **Ban type ignore suppressions**, **ruff-format**, **ruff-check**, **ty**, **pytest**—use the exact labels GitHub shows, which may be prefixed with **CI /**). Remove **ci** from required checks if it was previously added for the old gate job.
+- Server logs are at `~/.fcc/logs/server.log` (JSON lines, not the stale `server.log` in the project root).
 
 ## IDENTITY & CONTEXT
 

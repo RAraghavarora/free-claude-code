@@ -185,26 +185,6 @@ def _has_tool_history_blocks(message: Mapping[str, Any]) -> bool:
     return False
 
 
-def _has_replayable_thinking_before_tool_use(message: Mapping[str, Any]) -> bool:
-    if message.get("role") != "assistant":
-        return False
-    content = message.get("content")
-    if not isinstance(content, list):
-        return False
-
-    has_thinking = False
-    for block in content:
-        if not isinstance(block, dict):
-            continue
-        btype = block.get("type")
-        if btype == "thinking" and isinstance(block.get("thinking"), str):
-            has_thinking = bool(block["thinking"])
-            continue
-        if btype == "tool_use":
-            return has_thinking
-    return False
-
-
 def _has_tool_history(data: dict[str, Any]) -> bool:
     for message in data.get("messages") or ():
         if isinstance(message, Mapping) and _has_tool_history_blocks(message):
@@ -212,12 +192,26 @@ def _has_tool_history(data: dict[str, Any]) -> bool:
     return False
 
 
-def _has_replayable_tool_thinking(data: dict[str, Any]) -> bool:
+def _has_tool_use_missing_replayable_thinking(data: dict[str, Any]) -> bool:
     for message in data.get("messages") or ():
-        if isinstance(message, Mapping) and _has_replayable_thinking_before_tool_use(
-            message
-        ):
-            return True
+        if not isinstance(message, Mapping) or message.get("role") != "assistant":
+            continue
+
+        content = message.get("content")
+        if not isinstance(content, list):
+            continue
+
+        has_thinking = False
+        for block in content:
+            if not isinstance(block, Mapping):
+                continue
+            btype = block.get("type")
+            if btype == "thinking" and isinstance(block.get("thinking"), str):
+                has_thinking = bool(block["thinking"])
+                continue
+            if btype == "tool_use" and not has_thinking:
+                return True
+
     return False
 
 
@@ -454,12 +448,18 @@ def build_request_body(request_data: Any, *, thinking_enabled: bool) -> dict:
     data = dump_raw_messages_request(request_data)
     if "messages" in data:
         data["messages"] = _strip_unsupported_attachment_blocks(data["messages"])
+        # CC v2.1.154 puts role:system inside messages; DeepSeek rejects these
+        data["messages"] = [
+            m for m in data["messages"]
+            if not (isinstance(m, dict) and m.get("role") == "system")
+        ]
     _validate_deepseek_native_request_dict(data)
     data.pop("extra_body", None)
 
     has_tool_history = _has_tool_history(data)
-    has_replayable_tool_thinking = _has_replayable_tool_thinking(data)
-    unsafe_tool_followup = has_tool_history and not has_replayable_tool_thinking
+    unsafe_tool_followup = (
+        has_tool_history and _has_tool_use_missing_replayable_thinking(data)
+    )
     effective_thinking_enabled = thinking_enabled and not unsafe_tool_followup
     if thinking_enabled:
         if unsafe_tool_followup:
